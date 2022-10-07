@@ -29,7 +29,7 @@ else
     delete(fullfile(DataPath,'Data_NMC_Balance_Ankle.zip'));
     disp(' Downloading Afschrift 2022 data finished');
     disp([' You can find the data in: ' DataPath]);
-    disp([' You might want to read the README.md file in this folder'])
+    disp(' You might want to read the README.md file in this folder')
 end
 
 end
