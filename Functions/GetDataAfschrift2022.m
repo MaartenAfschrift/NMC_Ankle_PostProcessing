@@ -22,12 +22,14 @@ else
     disp('Hit enter if you want to download Afschrift 2022 data (500 MB)');
     pause();
     disp(' download started')
-    LinkZipFile = 'https://www.dropbox.com/s/pwe0hkrwexhpqej/Data_NMC_Balance_Ankle.zip?dl=1';    
+    LinkZipFile = 'https://www.dropbox.com/s/nikwfsov5ch4nb4/Data_NMC_Balance_Ankle.zip?dl=1';    
     websave(fullfile(DataPath,'Data_NMC_Balance_Ankle.zip'),LinkZipFile);
     disp(' unzip DataFile');
     unzip(fullfile(DataPath,'Data_NMC_Balance_Ankle.zip'),DataPath);
     delete(fullfile(DataPath,'Data_NMC_Balance_Ankle.zip'));
     disp(' Downloading Afschrift 2022 data finished');
+    disp([' You can find the data in: ' DataPath]);
+    disp([' You might want to read the README.md file in this folder'])
 end
 
 end
