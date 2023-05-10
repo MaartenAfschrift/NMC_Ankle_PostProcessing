@@ -63,12 +63,12 @@ if Set.CreateDatMatUnp
     disp('Postprocessing steady-state walking data');
     % pre allocatie data matrices
     nsubj = length(SubjStruct);
-    NMCEMGStore = nan(100,nsubj,3,7,200); 
+    NMCEMGStore = nan(100,nsubj,3,7,200);
     ZeroImpEMGStore = nan(100,nsubj,7,200);
-    NMCSpatioTempStore = nan(nsubj,3,5,200); % (1) = stride duraction, (2)dt_stance, (3) percStance, (4) percSwing, (5) percDS
-    ZeroImpSpatioTempStore = nan(nsubj,5,200); % (1) = stride duraction, (2)dt_stance, (3) percStance, (4) percSwing, (5) percDS
-    ExoAdaptation_NMC = nan(nsubj,3,200);
-    ExoAdaptation_MinImp = nan(nsubj,200);
+    NMCSpatioTempStore = nan(nsubj,3,11,200);
+    ZeroImpSpatioTempStore = nan(nsubj,11,200); 
+    ExoAdaptation_NMC = nan(nsubj,3,200,2);
+    ExoAdaptation_MinImp = nan(nsubj,200,2);
     for s=1:length(SubjStruct)
         sID = SubjStruct{s}.subject.id;
         FolderSteadyState = fullfile(DatPath,['subject_' num2str(sID)],'SteadyState');
@@ -87,11 +87,11 @@ if Set.CreateDatMatUnp
                 % get EMG data
                 EMG_norm = [T.Soleus_R T.Gastroc_R T.Tibialis_R T.Vastus_R, ...
                     T.Soleus_L T.Gastroc_L T.Tibialis_L];
-                
+
                 % detect gait cycle events
-                [Event,Step] = GetSpatioTemporalParam(T.time,T.Fz_R,...
+                [Event,Step] = GetSpatioTemporalParam(T.time,T.Fz_L,...
                     T.Fz_R,treshold,dtOffPlate);
-                
+
                 % get the gait cycle averages between minute 2 en 4 of the
                 % trial
                 lowEMG_gcL = NormCycle(T.time,Event.ths_l,EMG_norm,...
@@ -99,53 +99,75 @@ if Set.CreateDatMatUnp
                 [~,~,ntrials] = size(lowEMG_gcL);
                 lowEMG_gcR = NormCycle(T.time,Event.ths_r,EMG_norm,...
                     treshold_dtStride,true);
-                [~,~,ntrials] = size(lowEMG_gcR);                
+                [~,~,ntrials] = size(lowEMG_gcR);
 
-                % get foot placement information
-                Pelvis = [T.COMPelvis_x T.COMPelvis_y T.COMPelvis_z];
-                FootL = [T.LTOE_x T.LTOE_y T.LTOE_z];
-                FootR = [T.RTOE_x T.RTOE_y T.RTOE_z];
+                % get foot placement information (and Xcom for reviewer 1)
+                Pelvis = [T.COMPelvis_x T.COMPelvis_y T.COMPelvis_z]./1000;
+                FootL = [T.LTOE_x T.LTOE_y T.LTOE_z]./1000;
+                FootR = [T.RTOE_x T.RTOE_y T.RTOE_z]./1000;
                 StabInfo = getFootPlacementInfo(Event,T.time,Pelvis,FootL,FootR);
 
                 % exoskeleton torque during adaptation
                 tau_r = T.RA_JointTorque_Nm;
                 tPert_Qual = Event.ths_r;
-                [TauExoAv,~] = getAvergePertRStance(Event,tau_r,T.time,Event.ths_r(2:end-1));
+                [TauExoAv,~] = getAvergePertRStance(Event,tau_r,T.time,...
+                    Event.ths_r(2:end-1));
+
+                % exoskeleton work during perturbed Rstance phase «reviewer 1»
+                tau_r = T.RA_JointTorque_Nm;
+                time = T.time;
+                q = T.RA_JointAngle_rad;
+                qd = [diff(q)./diff(time); 0];
+                ExoPower = tau_r.*qd;
+                [PowerExoAv, ~, dtRstance] = getAvergePertRStance(Event,...
+                    ExoPower,time, Event.ths_r(2:end-1));
+                WorkExoAv = PowerExoAv.* dtRstance;
 
                 % save results
-                ntrials = length(Step.StrideTime);
+                ntrials = length(Event.ths_l)-1;
+                ntrialsR = length(Event.ths_r)-1;
                 iSel = 1:ntrials;
                 if f<4
                     % muscle information
                     NMCEMGStore(:,s,f,5:7,1:ntrials) =  lowEMG_gcL(:,5:7,:);
-                    NMCEMGStore(:,s,f,1:4,1:ntrials) =  lowEMG_gcR(:,1:4,:);
+                    NMCEMGStore(:,s,f,1:4,1:ntrialsR) =  lowEMG_gcR(:,1:4,:);
                     % average torques
-                    ExoAdaptation_NMC(s,f,1:length(TauExoAv)) = TauExoAv;
+                    ExoAdaptation_NMC(s,f,1:length(TauExoAv),1) = TauExoAv;
+                    ExoAdaptation_NMC(s,f,1:length( WorkExoAv),2) =  WorkExoAv;
                     % spatio-temporal information
                     NMCSpatioTempStore(s,f,1,1:ntrials) = Step.StrideTime(1:ntrials);
                     NMCSpatioTempStore(s,f,2,1:ntrials) = Step.dtStance_n(1:ntrials);
                     NMCSpatioTempStore(s,f,3,1:ntrials) = Step.PercDS_n(1:ntrials);
                     NMCSpatioTempStore(s,f,4,1:ntrials) = Step.PercStance_n(1:ntrials);
                     NMCSpatioTempStore(s,f,5,1:ntrials) = Step.PercSwing_n(1:ntrials);
-                    NMCSpatioTempStore(s,f,6,1:ntrials) = StabInfo.ths_l.dFeet(1:ntrials);
-                    NMCSpatioTempStore(s,f,7,1:ntrials) = StabInfo.ths_l.dFootPelvis(1:ntrials);
+                    NMCSpatioTempStore(s,f,6,1:ntrials) = StabInfo.ths_l.dFeet(1:ntrials,1);
+                    NMCSpatioTempStore(s,f,7,1:ntrials) = StabInfo.ths_l.dFeet(1:ntrials,3);
+                    NMCSpatioTempStore(s,f,8,1:ntrials) = StabInfo.ths_l.dFootPelvis(1:ntrials,1);
+                    NMCSpatioTempStore(s,f,9,1:ntrials) = StabInfo.ths_l.dFootPelvis(1:ntrials,3);
+                    NMCSpatioTempStore(s,f,10,1:ntrials) = StabInfo.ths_l.dFootXcom(1:ntrials,1);
+                    NMCSpatioTempStore(s,f,11,1:ntrials) = StabInfo.ths_l.dFootXcom(1:ntrials,3);
                 else
                     % muscle information
                     ZeroImpEMGStore(:,s,5:7,1:ntrials) =  lowEMG_gcL(:,5:7,:);
-                    ZeroImpEMGStore(:,s,1:4,1:ntrials) =  lowEMG_gcR(:,1:4,:);
+                    ZeroImpEMGStore(:,s,1:4,1:ntrialsR) =  lowEMG_gcR(:,1:4,:);
                     % average torques
-                    ExoAdaptation_MinImp(s,1:length(TauExoAv)) = TauExoAv;
+                    ExoAdaptation_MinImp(s,1:length(TauExoAv),1) = TauExoAv;
+                    ExoAdaptation_MinImp(s,1:length( WorkExoAv),2) = WorkExoAv;
                     % spatio-temporal information
                     ZeroImpSpatioTempStore(s,1,1:ntrials) = Step.StrideTime(iSel);
                     ZeroImpSpatioTempStore(s,2,1:ntrials) = Step.dtStance_n(iSel);
                     ZeroImpSpatioTempStore(s,3,1:ntrials) = Step.PercDS_n(iSel);
                     ZeroImpSpatioTempStore(s,4,1:ntrials) = Step.PercStance_n(iSel);
                     ZeroImpSpatioTempStore(s,5,1:ntrials) = Step.PercSwing_n(iSel);
-                    ZeroImpSpatioTempStore(s,6,1:ntrials) = StabInfo.ths_l.dFeet(iSel);
-                    ZeroImpSpatioTempStore(s,7,1:ntrials) = StabInfo.ths_l.dFootPelvis(iSel);
+                    ZeroImpSpatioTempStore(s,6,1:ntrials) = StabInfo.ths_l.dFeet(iSel,1);
+                    ZeroImpSpatioTempStore(s,7,1:ntrials) = StabInfo.ths_l.dFeet(iSel,3);
+                    ZeroImpSpatioTempStore(s,8,1:ntrials) = StabInfo.ths_l.dFootPelvis(iSel,1);
+                    ZeroImpSpatioTempStore(s,9,1:ntrials) = StabInfo.ths_l.dFootPelvis(iSel,3);
+                    ZeroImpSpatioTempStore(s,10,1:ntrials) = StabInfo.ths_l.dFootXcom(iSel,1);
+                    ZeroImpSpatioTempStore(s,11,1:ntrials) = StabInfo.ths_l.dFootXcom(iSel,3);
                 end
             end
-        end       
+        end
         disp([' Subject ' num2str(s) ' finished']);
     end
 
@@ -155,24 +177,28 @@ if Set.CreateDatMatUnp
     Info_NMC_EMG.dim3= 'Qual File Number';
     Info_NMC_EMG.dim4 = {'Soleus R','Gastroc R','Tibialis R','Vastus R','Soleus L','Gastroc L','Tibialis L'};
     Info_NMC_EMG.dim5 = 'Trials';
-    Info_NMC_EMG.script = 'Batch_AdaptationGeyerModel.m';
+    Info_NMC_EMG.script = 'CreateDataMatrix.m';
 
     Info_NMC_SpatioTemp.dim1 = SubjPreFix;
     Info_NMC_SpatioTemp.dim2= 'Qual File Number';
     Info_NMC_SpatioTemp.dim4 = 'Trials';
-    Info_NMC_SpatioTemp.dim3 = '(1) = stride duraction, (2)dt_stance, (3) percStance, (4) percSwing, (5) percDS, (6) stride length, (7) distance foot pelvis';
-    Info_NMC_SpatioTemp.script = 'Batch_AdaptationGeyerModel.m';
+    Info_NMC_SpatioTemp.dim3 = ['(1) = stride duraction, (2)dt_stance, (3) percStance,' ...
+        '(4) percSwing, (5) percDS, (6) stride length-x, (7) stride length-z, (8) position foot w.r.t com -x',...
+        '(9) position foot w.r.t com -z','(10) position foot w.r.t Xcom -x','(11) position foot w.r.t Xcom -z'];
+    Info_NMC_SpatioTemp.script = 'CreateDataMatrix.m';
 
     Info_ZeroImp_SpatioTemp.dim1 = SubjPreFix;
     Info_ZeroImp_SpatioTemp.dim3 = 'Trials';
-    Info_ZeroImp_SpatioTemp.dim2 = '(1) = stride duraction, (2)dt_stance, (3) percStance, (4) percSwing, (5) percDS, (6) stride length, (7) distance foot pelvis';
-    Info_ZeroImp_SpatioTemp.script = 'Batch_AdaptationGeyerModel.m';
+    Info_ZeroImp_SpatioTemp.dim2 = ['(1) = stride duraction, (2)dt_stance, (3) percStance,' ...
+        '(4) percSwing, (5) percDS, (6) stride length-x, (7) stride length-z, (8) position foot w.r.t com -x',...
+        '(9) position foot w.r.t com -z','(10) position foot w.r.t Xcom -x','(11) position foot w.r.t Xcom -z'];
+    Info_ZeroImp_SpatioTemp.script = 'CreateDataMatrix.m';
 
     InfoZeroImp.dim1 = 'norm gait cycle';
     InfoZeroImp.dim2 = SubjPreFix;
     InfoZeroImp.dim3 = {'Soleus R','Gastroc R','Tibialis R','Vastus R','Soleus L','Gastroc L','Tibialis L'};
     InfoZeroImp.dim4 = 'Trials';
-    InfoZeroImp.script = 'Batch_AdaptationGeyerModel.m';
+    InfoZeroImp.script = 'CreateDataMatrix.m';
 
     % save as .mat file
     if ~isfolder(fullfile(DatPath,'ResultsFiles'))
@@ -190,9 +216,10 @@ if Set.CreateDatMatPert
     % headers for output matrix
     headers = {'Subject-id','Controller-id','Perturbation-direction',...
         'Soleus R','Gastroc R','Tibialis R','Vastus R','Soleus L','Gastroc L','Tibialis L',...
-        'SwingTime','StrideLength','dPelvisFoot','COMstance','avExoTorque','av_AnkleAngleR', ...
+        'SwingTime','StrideLength_x','StrideLength_z','dPelvisFoot_x','dPelvisFoot_z','COMstance','avExoTorque','av_AnkleAngleR', ...
         'Soleus R LStance','Gastroc R LStance','Tibialis R LStance','Vastus R LStance',...
-        'Soleus L LStance','Gastroc L LStance','Tibialis L LStance','LstanceTime','WorkExoRstance'};
+        'Soleus L LStance','Gastroc L LStance','Tibialis L LStance', 'Foot_Xcom_x', 'Foot_Xcom_z', ...
+        'ExoWork R Rstance','WorkPusher','COM_hs1','COM_hs2','COM_hs3','COM_hs4'};
     headers_Unp = {'Subject-id','Controller-id','Soleus R','Gastroc R','Tibialis R',...
         'Vastus R','Soleus L','Gastroc L','Tibialis L'};
 
@@ -219,7 +246,7 @@ if Set.CreateDatMatPert
                         T = readtable(DatFile);
 
                         % perturbation is always at t=0s
-                        tPert = 0; 
+                        tPert = 0;
 
                         % get matrix with EMG data in time window
                         EMG_norm = [T.Soleus_R T.Gastroc_R T.Tibialis_R T.Vastus_R, ...
@@ -233,13 +260,12 @@ if Set.CreateDatMatPert
                             T.Fz_R,treshold,dtOffPlate);
 
                         % movement pelvis on treadmill
-                        Pelvis = [T.COMPelvis_x  T.COMPelvis_y T.COMPelvis_z];
-                        PelvisPos_SingleStance= getPelvisMovementTreadmill(Event,T.time,Pelvis,tPert);
+                        Pelvis = [T.COMPelvis_x  T.COMPelvis_y T.COMPelvis_z]./1000;
+                        [PelvisPos_SingleStance, dPelvis_nhs]= getPelvisMovementTreadmill(Event,T.time,Pelvis,tPert);
 
                         % get foot placement at first event after perturbation
-                        Pelvis = [T.COMPelvis_x T.COMPelvis_y T.COMPelvis_z];
-                        FootL = [T.LTOE_x T.LTOE_y T.LTOE_z];
-                        FootR = [T.RTOE_x T.RTOE_y T.RTOE_z];
+                        FootL = [T.LTOE_x T.LTOE_y T.LTOE_z]./1000;
+                        FootR = [T.RTOE_x T.RTOE_y T.RTOE_z]./1000;
                         StabInfo = getFootPlacementInfo(Event,T.time,Pelvis,FootL,FootR,tPert);
 
                         % Get average exo torque stance phase
@@ -274,6 +300,33 @@ if Set.CreateDatMatPert
                             EMG_LeftStance(iM) = getAvergeLeftStanceAfterPert(Event,EMG_norm(:,iM),T.time,tPert);
                         end
 
+                        % exoskeleton work during perturbed Rstance phase «reviewer 1»
+                        tau_r = T.RA_JointTorque_Nm;
+                        time = T.time;
+                        q = T.RA_JointAngle_rad;
+                        qd = [diff(q)./diff(time); 0];
+                        ExoPower = tau_r.*qd;
+                        [PowerExoAv, ~, dtRstance] = getAvergePertRStance(Event,...
+                            ExoPower,time, tPert);
+                        WorkExoAv = PowerExoAv.* dtRstance;
+
+                        % work done by pusher
+                        r_pusher = T.SACR_x/1000 ;
+                        r_pusher_dot = [diff(r_pusher)./diff(T.time); 0] + 2/3.6;
+                        F_pusher_mag = mass(s)*9.81*0.12;
+                        F_pusher = zeros(size(r_pusher));
+                        i_pert = find(T.time>=0 & T.time<=0.2);
+                        if PertDir == 1 
+                            F_pusher(i_pert) = F_pusher_mag;
+                        else
+                            F_pusher(i_pert) = -F_pusher_mag;
+                        end
+                        Power_pusher = F_pusher.*r_pusher_dot;
+                        [Power_pusherAv, ~, dtRstance] = getAvergePertRStance(Event,...
+                            Power_pusher,time, tPert);
+                        WorkPusher = Power_pusherAv.* dtRstance;
+
+                        
                         % store outcomes in the large 2d matrix
                         %---------------------------------------
 
@@ -287,19 +340,25 @@ if Set.CreateDatMatPert
                         data(ctr,iEMGs:iEMGs+6) = EMGResponse;
 
                         % 'StrideLength'
-                        iStrideLength = find(strcmp(headers,'StrideLength'));
+                        iStrideLength = find(strcmp(headers,'StrideLength_x'));
+                        iStrideLength_z = find(strcmp(headers,'StrideLength_z'));
                         if isstruct(StabInfo) && length(StabInfo.ths_l.dFeet)>1
                             data(ctr,iStrideLength) = StabInfo.ths_l.dFeet(1);
+                             data(ctr,iStrideLength_z) = StabInfo.ths_l.dFeet(3);
                         else
                             data(ctr,iStrideLength) = NaN;
+                            data(ctr,iStrideLength_z) = NaN;
                         end
 
                         % position foot w.r.t. pelvis
-                        iSel = find(strcmp(headers,'dPelvisFoot'));
+                        iSelx = find(strcmp(headers,'dPelvisFoot_x'));
+                        iSelz = find(strcmp(headers,'dPelvisFoot_z'));
                         if isstruct(StabInfo) && length(StabInfo.ths_l.dFootPelvis)>1
-                            data(ctr,iSel) = StabInfo.ths_l.dFootPelvis(1);
+                            data(ctr,iSelx) = StabInfo.ths_l.dFootPelvis(1);
+                            data(ctr,iSelz) = StabInfo.ths_l.dFootPelvis(3);
                         else
-                            data(ctr,iSel) = NaN;
+                            data(ctr,iSelx) = NaN;
+                            data(ctr,iSelz) = NaN;
                         end
 
                         % movement COM stance phase
@@ -325,6 +384,31 @@ if Set.CreateDatMatPert
                         % EMG left stance
                         iEMGs = find(strcmp(headers,'Soleus R LStance'));
                         data(ctr,iEMGs:iEMGs+6) = EMG_LeftStance;
+
+                        % position foot w.r.t. Xcom
+                        if isstruct(StabInfo) && length(StabInfo.ths_l.dFootPelvis)>1
+                            iSel = find(strcmp(headers,'Foot_Xcom_x'));
+                            data(ctr,iSel) = StabInfo.ths_l.dFootXcom(1);
+                            iSel = find(strcmp(headers,'Foot_Xcom_z'));
+                            data(ctr,iSel) = StabInfo.ths_l.dFootXcom(3);
+                        end
+
+                        % exoskeleton work done
+                        iSel = find(strcmp(headers,'ExoWork R Rstance'));
+                        data(ctr,iSel) = WorkExoAv;   
+
+                        % work done by pusher
+                        iSel = find(strcmp(headers,'WorkPusher'));
+                        data(ctr,iSel) = WorkPusher;  
+
+                        % question reviewer: COM motion at heelstrikes afte
+                        % r perturbations
+                        for id = 1:4
+                            if length(dPelvis_nhs(:,1))>=id
+                                iSel = find(strcmp(headers,['COM_hs' num2str(id)]));
+                                data(ctr,iSel) = dPelvis_nhs(id,1);  
+                            end
+                        end
                         ctr = ctr+1;
                     end
                 end

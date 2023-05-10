@@ -1,4 +1,4 @@
-function [dPelvis] = getPelvisMovementTreadmill(Event,time,Pelvis,varargin)
+function [dPelvis, dPelvis_nhs] = getPelvisMovementTreadmill(Event,time,Pelvis,varargin)
 %getPelvisMovementTreadmill Computes the displacement of the pelvis between
 %right heelstrike and the subsequent right heelstrike
 %   % input arguments:
@@ -40,3 +40,27 @@ for i=1:length(ths_r)
         dPelvis(i,:) = Pelvis(iend,:) - Pelvis(i0,:);
     end
 end
+
+% addition based on question reviewer 1: also compute pelvis position at
+% first n-heelstrikes after perturbation onset:
+ths = [Event.ths_r; Event.ths_l]; % vector with all heelstrikes
+ths = sort(ths);
+ihs = find(ths>0); % all heelstrikes after perturbation onset
+dPelvis_nhs = nan(length(ihs),3);
+for i=1:length(ihs)
+    % get pelvis position before perturbation onset
+    t0 = ths_r;
+    i0 = find(time>=t0,1,'first');
+    x0 = Pelvis(i0,:);
+    % get pelvis position at ith heelstrike
+    tend = ths(ihs(i));
+    iend = find(time>=tend,1,'first');
+    xs = Pelvis(iend,:);
+    % store pelvis displacement
+    dPelvis_nhs(i,:) = xs-x0;
+end
+
+
+
+
+

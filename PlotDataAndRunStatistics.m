@@ -26,6 +26,7 @@ Settings.SaveFigures = true; % save the figures
 % index and name controller conditions
 ControlConditions = [3 2 4]; % (3= NMC_COM, 2 = NMC_Default, 4 = minimal impedance)
 NamesConditions = {'GeyerBal','GeyerCOM','GeyerD','MinImp'};
+NamesConditions_header = {' ','NMC COM','NMC default', 'Minimal impedance'};
 
 %% Load the main data matrix
 
@@ -83,8 +84,8 @@ nsubj = length(subj_unique);
 ContrNam = NamesConditions(ControlConditions);
 
 % colors for each control condition
-Cols = [0.9153    0.2816    0.2878; % NMC_Def
-    0.4416    0.7490    0.4322; % NMC_COM
+Cols = [28/255 117/255 188/255; % NMC_Def
+    114/255 191/255 111/255; % NMC_COM
     0.6 0.6 0.6]; % minimal impedance
 mk = 4;
 
@@ -312,7 +313,7 @@ ControlConditionsS =ControlConditions(1:2);
 
 % we want to plot the assistance during unperturbed walking
 UnpAv_Assist = squeeze(nanmean(Adapt.ExoAdaptation_NMC,3));
-UnpMean = squeeze(nanmean(UnpAv_Assist,2))';
+UnpMean = squeeze(nanmean(UnpAv_Assist,2));
 
 for iPertDir = 1:2 % loop over the two perturbation direciton
     % get matrix with average of nperturbations for each subject in
@@ -331,7 +332,7 @@ for iPertDir = 1:2 % loop over the two perturbation direciton
         end
     end
     % we want geyer assistance during unperturbed walking
-    DatComp(:,3) = UnpMean./mass;
+    DatComp(:,3) = UnpMean(:,1)./mass';
 
     % one way onava statistics
     DatCompNormMin = DatComp./DatComp(:,3);
@@ -424,7 +425,7 @@ for iPertDir = 1:2 % loop over the two perturbation direciton
 
         % get matrix with average of nperturbations for each subject in
         % controller condtion GeyerD and Geyer COM
-        Dsel= data(:,strcmp(headers,OutStats{iM}))./1000;
+        Dsel= data(:,strcmp(headers,OutStats{iM}));
         DatComp= nan(length(subj_unique),2); ctr = 0;
         for iContr = ControlConditions
             ctr = ctr+1;
@@ -593,6 +594,569 @@ disp('Unperturbed walking - Percentage change in muscle activity: ')
 for m=1:length(PercChange)
     disp(['   ' Muscles{m} '  ' num2str(PercChange(m))]);
 end
+
+%% Plot exploratory analysis -- "balance" (related?) outcomes reviewer 1
+
+% question reviewer 1: plot additional balance related outcomes.
+
+% we run the analysis for (you can use this script to plot any outcome from the data array)
+% PlotVars = {'StrideLength_x','StrideLength_z','dPelvisFoot_x','dPelvisFoot_z','Foot_Xcom_x','Foot_Xcom_z'};
+% PlotVars_header = {'\Delta StrideLength-x [m]','\Delta StrideLength-z [m]','\Delta Pelvis-Foot-x [m]',...
+%     '\Delta Pelvis-Foot-z [m]','\Delta Xcom-Foot-x [m]','\Delta Xcom-Foot-z [m]'};
+PlotVars = {'StrideLength_x','dPelvisFoot_x','Foot_Xcom_x'};
+PlotVars_header = {'\Delta StrideLength-x [m]','\Delta Pelvis-Foot-x [m]','\Delta Xcom-Foot-x [m]'};
+iRef = [6 8 10];
+BoolRelativeToUnp = true; % changes in outcomes w.r.t. unperturbed walking 
+nVar = length(PlotVars);
+h = figure('Name','Balance outcomes');
+
+% open figure
+set(h,'color',[1, 1, 1]);
+set(h,'Position',[140         144        1604         594]);
+
+% select some specific columns in the data matrix
+Subject = data(:,strcmp(headers,'Subject-id'));
+Controller = data(:,strcmp(headers,'Controller-id'));
+PertDir = data(:,strcmp(headers,'Perturbation-direction'));
+subj_unique = unique(Subject);
+nsubj = length(subj_unique);
+
+% select control conditions
+ContrNam = NamesConditions(ControlConditions);
+
+% colors for each control condition
+mk = 4;
+
+% pre-allocate matrix with subject average responses
+PertDirLab = {'Push', 'Pull'};
+
+% loop over push and pull perturbations
+for iPertDir = 1:2 % push and pull perturbations
+    disp(' ');
+    disp([PertDirLab{iPertDir} ' perturbations']);
+    % loop over all outcomes
+    for iM = 1:nVar       
+        % get matrix with average/median of nperturbations for each subject
+        DatSel = data(:,strcmp(headers,PlotVars{iM}));
+        DatComp= nan(length(subj_unique),2); ctr = 0;
+        for iContr = ControlConditions
+            ctr = ctr+1;
+            for s=1:length(subj_unique)
+                    % select perturabtion trials for specific subject in a
+                    % specific controller condition and perturbation direction
+                    iSel = Subject == subj_unique(s) & Controller == iContr & PertDir == iPertDir;
+                    if Settings.UseMean
+                        DatComp(s,ctr) = nanmean(DatSel(iSel));
+                    else
+                        DatComp(s,ctr) = nanmedian(DatSel(iSel));
+                    end
+            end
+        end
+        % there is an outlier in the foot position (wrong label marker in subject 5)
+        DatComp(5,:) = NaN; % To Do check this in dataset.       
+
+
+%         % norm to response minimal impedance
+%         DatCompNormMin = DatComp./DatComp(:,3);
+%         if length(ControlConditions) == 3 && Settings.NormToMinImpPert
+%             DatComp = DatComp./DatComp(:,3);
+%         end
+
+        % deviation from unperturbed values
+        if BoolRelativeToUnp
+            for s=1:length(subj_unique)
+                DRef = squeeze(Adapt.ZeroImpSpatioTempStore(s,iRef(iM),:));
+                DRef_mean = nanmean(DRef);
+                DatComp(s,:) = DatComp(s,:)-DRef_mean;
+            end
+        end
+            
+        
+
+        % Plot data and run statistics
+        subplot(2,nVar,iM+(iPertDir-1)*nVar)
+        for i=1:length(ControlConditions)
+            PlotBar(i*2-1,DatComp(:,i),Cols(i,:),mk);
+        end
+        yLineInput = [squeeze(DatComp(:,1)) squeeze(DatComp(:,2)) squeeze(DatComp(:,3))];
+        xLineInput = [ones(nsubj,1) ones(nsubj,1)*3 ones(nsubj,1)*5];
+        line(xLineInput', yLineInput','Color',[0.5 0.5 0.5]); hold on;
+
+        set(gca,'box','off')
+        set(gca,'XTick',[1 3 5]);
+        set(gca,'XTickLabel',NamesConditions_header(ControlConditions));
+        set(gca,'XTickLabelRotation',60);
+        title(PlotVars_header(iM))
+        if iM ==1
+            if iPertDir ==1
+                ylabel('PUSH');
+            elseif iPertDir ==2
+                ylabel('Pull');
+            end
+        end
+        set(gca,'FontSize',11);
+        set(gca,'Box','off');
+        set(gca,'LineWidth',1.5);
+        set(gca,'YLim',[-0.2 0.2]);
+
+    end
+end
+if Settings.SaveFigures
+    saveas(h,fullfile(DatPath,'ResultsFigures','Stats_StabilityOutcomes.fig'),'fig');
+    saveas(h,fullfile(DatPath,'ResultsFigures','Stats_StabilityOutcomes.svg'),'svg');
+end
+
+disp(' ');
+
+
+%% Plot exploratory analysis -- exoskeleton work reviewer 1
+
+% plot work done by exoskeleton during the perturbed step
+
+% question reviewer 1: plot additional balance related outcomes.
+
+% we run the analysis for (you can use this script to plot any outcome from the data array)
+PlotVars = {'ExoWork R Rstance'};
+nVar = length(PlotVars);
+h = figure('Name','Exo work');
+
+% open figure
+set(h,'color',[1, 1, 1]);
+set(h,'Position',[150   366   932   355]);
+
+% select some specific columns in the data matrix
+Subject = data(:,strcmp(headers,'Subject-id'));
+Controller = data(:,strcmp(headers,'Controller-id'));
+PertDir = data(:,strcmp(headers,'Perturbation-direction'));
+subj_unique = unique(Subject);
+nsubj = length(subj_unique);
+
+% select control conditions
+ContrNam = NamesConditions(ControlConditions);
+
+% colors for each control condition
+mk = 4;
+
+% pre-allocate matrix with subject average responses
+PertDirLab = {'Push', 'Pull'};
+
+% loop over push and pull perturbations
+for iPertDir = 1:2 % push and pull perturbations
+    disp(' ');
+    disp([PertDirLab{iPertDir} ' perturbations']);
+    % loop over all outcomes
+    for iM = 1:nVar       
+        % get matrix with average/median of nperturbations for each subject
+        DatSel = data(:,strcmp(headers,PlotVars{iM}));
+        DatComp= nan(length(subj_unique),2); ctr = 0;
+        for iContr = ControlConditions
+            ctr = ctr+1;
+            for s=1:length(subj_unique)
+                % select perturabtion trials for specific subject in a
+                % specific controller condition and perturbation direction
+                iSel = Subject == subj_unique(s) & Controller == iContr & PertDir == iPertDir;
+                if Settings.UseMean
+                    DatComp(s,ctr) = nanmean(DatSel(iSel));
+                else
+                    DatComp(s,ctr) = nanmedian(DatSel(iSel));
+                end
+            end
+        end    
+        % add unperturbed values
+        Exo_mean = squeeze(nanmedian(Adapt.ExoAdaptation_MinImp,2));
+        Exo_mean_Work_MinImp = Exo_mean(:,2);
+        Exo_mean = squeeze(nanmedian(Adapt.ExoAdaptation_NMC,3));
+        Exo_mean_Work_NMC = Exo_mean(:,3,2);
+        DatComp = [DatComp Exo_mean_Work_MinImp Exo_mean_Work_NMC];
+        ColsSel = [Cols; Cols(3,:); Cols(1,:)];
+
+
+        % Plot data
+        subplot(1,2,iPertDir);
+        xLoc = [1 3 5 9 11];
+        for i=1:length(ControlConditions)+2
+            PlotBar(xLoc(i),DatComp(:,i),ColsSel(i,:),mk);
+        end
+        yLineInput = [squeeze(DatComp(:,1)) squeeze(DatComp(:,2)) squeeze(DatComp(:,3)), ...
+            squeeze(DatComp(:,4)) squeeze(DatComp(:,5))];
+        xLineInput = [ones(nsubj,1) ones(nsubj,1)*3 ones(nsubj,1)*5 ones(nsubj,1)*9 ones(nsubj,1)*11];
+        line(xLineInput', yLineInput','Color',[0.5 0.5 0.5]); hold on;
+
+        
+        NamesConditions_temp = [NamesConditions_header(ControlConditions) {'Minimal impdance','NMC default'}];
+
+        set(gca,'box','off')
+        set(gca,'XTick',xLoc);
+        set(gca,'XTickLabel',NamesConditions_temp);
+        set(gca,'XTickLabelRotation',60);
+        title(PlotVars(iM))
+        if iM ==1
+            if iPertDir ==1
+                ylabel('PUSH');
+            elseif iPertDir ==2
+                ylabel('Pull');
+            end
+        end
+        set(gca,'FontSize',11);
+        set(gca,'Box','off');
+        set(gca,'LineWidth',1.5)
+
+    end
+end
+if Settings.SaveFigures
+    saveas(h,fullfile(DatPath,'ResultsFigures','Exo_WorkRStance.fig'),'fig');
+    saveas(h,fullfile(DatPath,'ResultsFigures','Exo_WorkRStance.svg'),'svg');
+end
+
+disp(' ');
+
+%% Plot exploratory analysis -- pusher work work reviewer 1
+
+% plot work done by exoskeleton during the perturbed step
+
+% question reviewer 1: plot additional balance related outcomes.
+
+% we run the analysis for (you can use this script to plot any outcome from the data array)
+PlotVars = {'WorkPusher'};
+nVar = length(PlotVars);
+h = figure('Name','Exo work');
+
+% open figure
+set(h,'color',[1, 1, 1]);
+set(h,'Position',[150   366   932   355]);
+
+% select some specific columns in the data matrix
+Subject = data(:,strcmp(headers,'Subject-id'));
+Controller = data(:,strcmp(headers,'Controller-id'));
+PertDir = data(:,strcmp(headers,'Perturbation-direction'));
+subj_unique = unique(Subject);
+nsubj = length(subj_unique);
+
+% select control conditions
+ContrNam = NamesConditions(ControlConditions);
+
+% colors for each control condition
+mk = 4;
+
+% pre-allocate matrix with subject average responses
+PertDirLab = {'Push', 'Pull'};
+
+% loop over push and pull perturbations
+for iPertDir = 1:2 % push and pull perturbations
+    disp(' ');
+    disp([PertDirLab{iPertDir} ' perturbations']);
+    % loop over all outcomes
+    for iM = 1:nVar       
+        % get matrix with average/median of nperturbations for each subject
+        DatSel = data(:,strcmp(headers,PlotVars{iM}));
+        DatComp= nan(length(subj_unique),2); ctr = 0;
+        for iContr = ControlConditions
+            ctr = ctr+1;
+            for s=1:length(subj_unique)
+                % select perturabtion trials for specific subject in a
+                % specific controller condition and perturbation direction
+                iSel = Subject == subj_unique(s) & Controller == iContr & PertDir == iPertDir;
+                if Settings.UseMean
+                    DatComp(s,ctr) = nanmean(DatSel(iSel));
+                else
+                    DatComp(s,ctr) = nanmedian(DatSel(iSel));
+                end
+            end
+        end    
+     
+
+        % Plot data
+        subplot(1,2,iPertDir);
+        xLoc = [1 3 5];
+        for i=1:length(ControlConditions)
+            PlotBar(xLoc(i),DatComp(:,i),ColsSel(i,:),mk);
+        end
+        yLineInput = [squeeze(DatComp(:,1)) squeeze(DatComp(:,2)) squeeze(DatComp(:,3))];
+        xLineInput = [ones(nsubj,1) ones(nsubj,1)*3 ones(nsubj,1)*5];
+        line(xLineInput', yLineInput','Color',[0.5 0.5 0.5]); hold on;
+
+        
+        NamesConditions_temp = [NamesConditions_header(ControlConditions)];
+
+        set(gca,'box','off')
+        set(gca,'XTick',xLoc);
+        set(gca,'XTickLabel',NamesConditions_temp);
+        set(gca,'XTickLabelRotation',60);
+        title(PlotVars(iM))
+        if iM ==1
+            if iPertDir ==1
+                ylabel('PUSH');
+            elseif iPertDir ==2
+                ylabel('Pull');
+            end
+        end
+        set(gca,'FontSize',11);
+        set(gca,'Box','off');
+        set(gca,'LineWidth',1.5)
+
+    end
+end
+if Settings.SaveFigures
+    saveas(h,fullfile(DatPath,'ResultsFigures','Pusher_WorkRStance.fig'),'fig');
+    saveas(h,fullfile(DatPath,'ResultsFigures','Pusher_WorkRStance.svg'),'svg');
+end
+
+disp(' ');
+
+
+
+
+%% Average muscle activity during left stance phase after perturbation
+
+% this was a question of reviewer 1: is muscle activity different in the
+% contra-lateral limb ?
+
+% we run the analysis for
+Muscles = {'Soleus R LStance','Gastroc R LStance','Tibialis R LStance',...
+    'Vastus R LStance','Soleus L LStance','Gastroc L LStance','Tibialis L LStance'};
+h = figure('Name','MuscleResponse L Stance');
+
+% open figure
+set(h,'color',[1, 1, 1]);
+set(h,'Position',[150   127   710   594]);
+
+% select some specific columns in the data matrix
+Subject = data(:,strcmp(headers,'Subject-id'));
+Controller = data(:,strcmp(headers,'Controller-id'));
+PertDir = data(:,strcmp(headers,'Perturbation-direction'));
+subj_unique = unique(Subject);
+nsubj = length(subj_unique);
+
+% select control conditions
+ContrNam = NamesConditions(ControlConditions);
+
+% colors for each control condition
+Cols = [28/255 117/255 188/255; % NMC_Def
+    114/255 191/255 111/255; % NMC_COM
+    0.6 0.6 0.6]; % minimal impedance
+mk = 4;
+
+% pre-allocate matrix with subject average responses
+DatAvStore = nan(7,3,2);
+
+% print to txt file
+disp('Statistics Muscle Response to perturbation')
+disp(' ');
+PertDirLab = {'Push', 'Pull'};
+
+% loop over push and pull perturbations
+for iPertDir = 1:2 % push and pull perturbations
+    disp(' ');
+    disp([PertDirLab{iPertDir} ' perturbations']);
+    % loop over soleus, gastrocnemius and tibialis anterior muscle on the
+    % right leg
+    for iM = 1:3 % we run this analys
+        % display muscle name
+        disp(['  ' Muscles{iM+4}]);
+        
+        % get matrix with average/median of nperturbations for each subject
+        Muscle = data(:,strcmp(headers,Muscles{iM+4}));
+        DatComp= nan(length(subj_unique),2); ctr = 0;
+        for iContr = ControlConditions
+            ctr = ctr+1;
+            for s=1:length(subj_unique)
+                % select perturabtion trials for specific subject in a
+                % specific controller condition and perturbation direction
+                iSel = Subject == subj_unique(s) & Controller == iContr & PertDir == iPertDir;
+                if Settings.UseMean
+                    DatComp(s,ctr) = nanmean(Muscle(iSel));
+                else
+                    DatComp(s,ctr) = nanmedian(Muscle(iSel));
+                end
+            end
+        end
+        DatAvStore(iM,:,iPertDir) = nanmean(DatComp);
+
+        % norm to response minimal impedance
+        DatCompNormMin = DatComp./DatComp(:,3);
+        if length(ControlConditions) == 3 && Settings.NormToMinImpPert
+            DatComp = DatComp./DatComp(:,3);
+        end
+
+
+        % create table for anova test
+        within = table(ContrNam','VariableNames',{'Controller'});
+        within.Controller = categorical(within.Controller);
+        table_DatComp = array2table(DatComp,'VariableNames',{'V1','V2','V3'});
+        rm = fitrm(table_DatComp,'V1-V3 ~ 1','WithinDesign',within);
+        ranova_tbl = ranova(rm,'WithinModel','Controller');
+
+        % Run the multiple comparison
+        mc = multcompare(rm,'Controller','ComparisonType','tukey-kramer');
+
+        % Mauchly’s test for sphericity
+        tbl_sph = mauchly(rm);
+        rm_eps = epsilon(rm);
+
+        % display statistic results
+        PercChange_NMC_COM_MinImp = nanmean(DatCompNormMin(:,2))-1;
+        PercChange_NMC_Default_MinImp =  nanmean(DatCompNormMin(:,1))-1;
+        disp('    Relative change Muscle activity');
+        disp(['      NMC-Default / MinImp ', num2str(round(PercChange_NMC_Default_MinImp*100,2))]);
+        disp(['      NMC-COM / MinImp ', num2str(round(PercChange_NMC_COM_MinImp*100,2))]);
+        disp('    Stats');
+        disp(['     F(' num2str(ranova_tbl.DF(3)) ',' num2str(ranova_tbl.DF(4)) ') = ' num2str(ranova_tbl.F(3))   ', p =' num2str(ranova_tbl.pValue(3))])
+        disp(['       P(NMC-Default / NMC-COM) = ' num2str(round(mc.pValue(1),3)) ]);
+        disp(['       P(NMC-COM / MinImpedance)  = ' num2str(round(mc.pValue(2),3)) ]);
+        disp(['       P(NMC-Default / MinImpedance) = ' num2str(round(mc.pValue(4),3)) ]);
+
+        % Plot data and run statistics
+        subplot(2,3,iM+(iPertDir-1)*3)
+        for i=1:length(ControlConditions)
+            PlotBar(i*2-1,DatComp(:,i),Cols(i,:),mk);
+        end
+        yLineInput = [squeeze(DatComp(:,1)) squeeze(DatComp(:,2)) squeeze(DatComp(:,3))];
+        xLineInput = [ones(nsubj,1) ones(nsubj,1)*3 ones(nsubj,1)*5];
+        line(xLineInput', yLineInput','Color',[0.5 0.5 0.5]); hold on;
+
+        set(gca,'box','off')
+        set(gca,'XTick',[1 3 5]);
+        set(gca,'XTickLabel',NamesConditions(ControlConditions));
+        set(gca,'XTickLabelRotation',60);
+        title(Muscles(iM+4))
+        if iM ==1
+            if iPertDir ==1
+                ylabel('PUSH');
+            elseif iPertDir ==2
+                ylabel('Pull');
+            end
+        end
+        set(gca,'FontSize',11);
+        set(gca,'Box','off');
+        set(gca,'LineWidth',1.5)
+
+    end
+end
+if Settings.SaveFigures
+    saveas(h,fullfile(DatPath,'ResultsFigures','Stats_MuscleResponse_.fig'),'fig');
+    saveas(h,fullfile(DatPath,'ResultsFigures','Stats_MuscleResponse_.svg'),'svg');
+end
+
+disp(' ');
+disp('NMC-COM w.r.t. NMC-Default  ');
+PercChange = (DatAvStore(:,2,:)-DatAvStore(:,1,:))./DatAvStore(:,1,:);
+PertDir = {'Push', 'Pull'};
+for ip = 1:2
+    disp(['Percentage change in muscle activity after  ' PertDir{ip}])
+    for m=1:length(PercChange)
+        dsel = squeeze(PercChange(m,ip));
+        disp(['   ' Muscles{m} '  ' num2str(round(dsel*100,1))]);
+    end
+end
+
+disp(' ');
+disp('NMC-COM w.r.t. Minimal impedance  ');
+PercChange = (DatAvStore(:,2,:)-DatAvStore(:,3,:))./DatAvStore(:,3,:);
+PertDir = {'Push', 'Pull'};
+for ip = 1:2
+    disp(['Percentage change in muscle activity after  ' PertDir{ip}])
+    for m=1:length(PercChange)
+        dsel = squeeze(PercChange(m,ip));
+        disp(['   ' Muscles{m} '  ' num2str(round(dsel*100,1))]);
+    end
+end
+disp(' ');
+
+%% Plot COM position at first 4 heelstrikes after perturbation onset
+
+% plot work done by exoskeleton during the perturbed step
+
+% question reviewer 1: plot additional balance related outcomes.
+
+% we run the analysis for (you can use this script to plot any outcome from the data array)
+PlotVars = {'COM_hs1','COM_hs2','COM_hs3','COM_hs4'};
+PlotVars_headers = {'heel strike 1','heel strike 2','heel strike 3','heel strike 4'};
+nVar = length(PlotVars);
+h = figure('Name','COM nhs');
+
+% open figure
+set(h,'color',[1, 1, 1]);
+set(h,'Position',[0.0790    0.3660    1.0030    0.5637]*1000);
+
+% select some specific columns in the data matrix
+Subject = data(:,strcmp(headers,'Subject-id'));
+Controller = data(:,strcmp(headers,'Controller-id'));
+PertDir = data(:,strcmp(headers,'Perturbation-direction'));
+subj_unique = unique(Subject);
+nsubj = length(subj_unique);
+
+% select control conditions
+ContrNam = NamesConditions(ControlConditions);
+
+% colors for each control condition
+mk = 4;
+
+% pre-allocate matrix with subject average responses
+PertDirLab = {'Push', 'Pull'};
+
+% loop over push and pull perturbations
+for iPertDir = 1:2 % push and pull perturbations
+    disp(' ');
+    disp([PertDirLab{iPertDir} ' perturbations']);
+    % loop over all outcomes
+    for iM = 1:nVar       
+        % get matrix with average/median of nperturbations for each subject
+        DatSel = data(:,strcmp(headers,PlotVars{iM}));
+        DatComp= nan(length(subj_unique),2); ctr = 0;
+        for iContr = ControlConditions
+            ctr = ctr+1;
+            for s=1:length(subj_unique)
+                % select perturabtion trials for specific subject in a
+                % specific controller condition and perturbation direction
+                iSel = Subject == subj_unique(s) & Controller == iContr & PertDir == iPertDir;
+                if Settings.UseMean
+                    DatComp(s,ctr) = nanmean(DatSel(iSel));
+                else
+                    DatComp(s,ctr) = nanmedian(DatSel(iSel));
+                end
+            end
+        end         
+
+        % Plot data
+        subplot(2,nVar,(iPertDir-1)*nVar+iM);
+        xLoc = [1 3 5];
+        for i=1:length(ControlConditions)
+            PlotBar(xLoc(i),DatComp(:,i),ColsSel(i,:),mk);
+        end
+        yLineInput = [squeeze(DatComp(:,1)) squeeze(DatComp(:,2)) squeeze(DatComp(:,3))];
+        xLineInput = [ones(nsubj,1) ones(nsubj,1)*3 ones(nsubj,1)*5];
+        line(xLineInput', yLineInput','Color',[0.5 0.5 0.5]); hold on;
+        NamesConditions_temp = [NamesConditions_header(ControlConditions)];
+
+        set(gca,'box','off')
+        set(gca,'XTick',xLoc);
+        set(gca,'XTickLabel',NamesConditions_temp);
+        set(gca,'XTickLabelRotation',60);
+        title(PlotVars_headers(iM))
+        if iM ==1
+            if iPertDir ==1
+                ylabel('PUSH');
+            elseif iPertDir ==2
+                ylabel('Pull');
+            end
+        end
+        set(gca,'FontSize',11);
+        set(gca,'Box','off');
+        set(gca,'LineWidth',1.5);
+        if iPertDir == 1
+            set(gca,'Ylim',[0, 0.25]);
+        else
+            set(gca,'Ylim',[-0.25, 0]);
+        end
+
+    end
+end
+if Settings.SaveFigures
+    saveas(h,fullfile(DatPath,'ResultsFigures','COM_movement_nhs.fig'),'fig');
+    saveas(h,fullfile(DatPath,'ResultsFigures','COM_movement_nhs.svg'),'svg');
+end
+
+disp(' ');
 
 
 %% end diary
