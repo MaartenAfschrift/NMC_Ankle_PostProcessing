@@ -1,6 +1,6 @@
 function [Subj, SubjFolders, SubjPreFix, SubjID_Exo, mass, height, ...
     age, sID ] = GetSubjInfo(SubjFileDatPath)
-%GetSubjInfo Reads the .yml files of all subjects
+% GetSubjInfo Reads the .yml files of all subjects
 
 ct = 1;
 for s = 1:30

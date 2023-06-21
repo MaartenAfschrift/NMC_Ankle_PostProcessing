@@ -13,20 +13,24 @@
 % (as reported in the paper).
 % The raw data was interpolated to 100Hz to share the data in a reasonably
 % sized format. Note that EMG, forceplate and exoskeleton sensor data was
-% sampled at >1000Hz. 
+% sampled at 1000Hz. 
 
 % clear all variables
 clear all;
 
+% add current path and subfolder to your matlab path
+addpath(genpath(pwd));
+
 % settings
 Settings.UseMean = false; % use mean of median of the 10-12 repetitions of each perturbation per subject
 Settings.NormToMinImpPert = false; % normalize muscle response to muscle resposne to perturbation in zero impedance mode
-Settings.SaveFigures = true; % save the figures
+Settings.SaveFigures = false; % save the figures
 
 % index and name controller conditions
 ControlConditions = [3 2 4]; % (3= NMC_COM, 2 = NMC_Default, 4 = minimal impedance)
 NamesConditions = {'GeyerBal','GeyerCOM','GeyerD','MinImp'};
 NamesConditions_header = {' ','NMC COM','NMC default', 'Minimal impedance'};
+
 
 %% Load the main data matrix
 
@@ -131,7 +135,6 @@ for iPertDir = 1:2 % push and pull perturbations
             DatComp = DatComp./DatComp(:,3);
         end
 
-
         % create table for anova test
         within = table(ContrNam','VariableNames',{'Controller'});
         within.Controller = categorical(within.Controller);
@@ -190,6 +193,7 @@ if Settings.SaveFigures
     saveas(h,fullfile(DatPath,'ResultsFigures','Stats_MuscleResponse_.svg'),'svg');
 end
 
+% display descriptive statics (stored in the log file)
 disp(' ');
 disp('NMC-COM w.r.t. NMC-Default  ');
 PercChange = (DatAvStore(:,2,:)-DatAvStore(:,1,:))./DatAvStore(:,1,:);
@@ -397,8 +401,8 @@ for iPertDir = 1:2 % loop over the two perturbation direciton
     set(gca,'LineWidth',1.5)
 end
 if Settings.SaveFigures
-    saveas(h,fullfile(DatPath,'ResultsFigures',['AvExoMoment.fig']),'fig');
-    saveas(h,fullfile(DatPath,'ResultsFigures',['AvExoMoment.svg']),'svg');
+    saveas(h,fullfile(DatPath,'ResultsFigures','AvExoMoment.fig'),'fig');
+    saveas(h,fullfile(DatPath,'ResultsFigures','AvExoMoment.svg'),'svg');
 end
 
 %% COM displacement after perturbation (Figure 5 paper)
@@ -585,8 +589,8 @@ for iM = 1:7
 
 end
 if Settings.SaveFigures
-    saveas(h,fullfile(DatPath,'ResultsFigures',['Stats_EMGadaptation_v2.fig']),'fig');
-    saveas(h,fullfile(DatPath,'ResultsFigures',['Stats_EMGadaptation_v2.svg']),'svg');
+    saveas(h,fullfile(DatPath,'ResultsFigures','Stats_EMGadaptation_v2.fig'),'fig');
+    saveas(h,fullfile(DatPath,'ResultsFigures','Stats_EMGadaptation_v2.svg'),'svg');
 end
 
 PercChange = (DatAvStore(:,4)-DatAvStore(:,1))./DatAvStore(:,1);
@@ -599,10 +603,10 @@ end
 
 % question reviewer 1: plot additional balance related outcomes.
 
+% so we explored several balance related outecomes. not sure if this really
+% adds something but you can decide yourself :).
+
 % we run the analysis for (you can use this script to plot any outcome from the data array)
-% PlotVars = {'StrideLength_x','StrideLength_z','dPelvisFoot_x','dPelvisFoot_z','Foot_Xcom_x','Foot_Xcom_z'};
-% PlotVars_header = {'\Delta StrideLength-x [m]','\Delta StrideLength-z [m]','\Delta Pelvis-Foot-x [m]',...
-%     '\Delta Pelvis-Foot-z [m]','\Delta Xcom-Foot-x [m]','\Delta Xcom-Foot-z [m]'};
 PlotVars = {'StrideLength_x','dPelvisFoot_x','Foot_Xcom_x'};
 PlotVars_header = {'\Delta StrideLength-x [m]','\Delta Pelvis-Foot-x [m]','\Delta Xcom-Foot-x [m]'};
 iRef = [6 8 10];
@@ -612,7 +616,7 @@ h = figure('Name','Balance outcomes');
 
 % open figure
 set(h,'color',[1, 1, 1]);
-set(h,'Position',[140         144        1604         594]);
+set(h,'Position',[181.0000  149.0000  628.0000  708.6667]);
 
 % select some specific columns in the data matrix
 Subject = data(:,strcmp(headers,'Subject-id'));
@@ -655,13 +659,6 @@ for iPertDir = 1:2 % push and pull perturbations
         % there is an outlier in the foot position (wrong label marker in subject 5)
         DatComp(5,:) = NaN; % To Do check this in dataset.       
 
-
-%         % norm to response minimal impedance
-%         DatCompNormMin = DatComp./DatComp(:,3);
-%         if length(ControlConditions) == 3 && Settings.NormToMinImpPert
-%             DatComp = DatComp./DatComp(:,3);
-%         end
-
         % deviation from unperturbed values
         if BoolRelativeToUnp
             for s=1:length(subj_unique)
@@ -670,8 +667,6 @@ for iPertDir = 1:2 % push and pull perturbations
                 DatComp(s,:) = DatComp(s,:)-DRef_mean;
             end
         end
-            
-        
 
         % Plot data and run statistics
         subplot(2,nVar,iM+(iPertDir-1)*nVar)
@@ -711,9 +706,8 @@ disp(' ');
 
 %% Plot exploratory analysis -- exoskeleton work reviewer 1
 
-% plot work done by exoskeleton during the perturbed step
-
-% question reviewer 1: plot additional balance related outcomes.
+% Reviewer 1 asked (the excelled) question if the exoskeleton compensated
+% for the energetic effect of the perturbation.
 
 % we run the analysis for (you can use this script to plot any outcome from the data array)
 PlotVars = {'ExoWork R Rstance'};
@@ -730,9 +724,6 @@ Controller = data(:,strcmp(headers,'Controller-id'));
 PertDir = data(:,strcmp(headers,'Perturbation-direction'));
 subj_unique = unique(Subject);
 nsubj = length(subj_unique);
-
-% select control conditions
-ContrNam = NamesConditions(ControlConditions);
 
 % colors for each control condition
 mk = 4;
@@ -770,7 +761,6 @@ for iPertDir = 1:2 % push and pull perturbations
         DatComp = [DatComp Exo_mean_Work_MinImp Exo_mean_Work_NMC];
         ColsSel = [Cols; Cols(3,:); Cols(1,:)];
 
-
         % Plot data
         subplot(1,2,iPertDir);
         xLoc = [1 3 5 9 11];
@@ -780,9 +770,7 @@ for iPertDir = 1:2 % push and pull perturbations
         yLineInput = [squeeze(DatComp(:,1)) squeeze(DatComp(:,2)) squeeze(DatComp(:,3)), ...
             squeeze(DatComp(:,4)) squeeze(DatComp(:,5))];
         xLineInput = [ones(nsubj,1) ones(nsubj,1)*3 ones(nsubj,1)*5 ones(nsubj,1)*9 ones(nsubj,1)*11];
-        line(xLineInput', yLineInput','Color',[0.5 0.5 0.5]); hold on;
-
-        
+        line(xLineInput', yLineInput','Color',[0.5 0.5 0.5]); hold on;        
         NamesConditions_temp = [NamesConditions_header(ControlConditions) {'Minimal impdance','NMC default'}];
 
         set(gca,'box','off')
@@ -812,9 +800,7 @@ disp(' ');
 
 %% Plot exploratory analysis -- pusher work work reviewer 1
 
-% plot work done by exoskeleton during the perturbed step
-
-% question reviewer 1: plot additional balance related outcomes.
+% plot work done by pusher
 
 % we run the analysis for (you can use this script to plot any outcome from the data array)
 PlotVars = {'WorkPusher'};
@@ -831,9 +817,6 @@ Controller = data(:,strcmp(headers,'Controller-id'));
 PertDir = data(:,strcmp(headers,'Perturbation-direction'));
 subj_unique = unique(Subject);
 nsubj = length(subj_unique);
-
-% select control conditions
-ContrNam = NamesConditions(ControlConditions);
 
 % colors for each control condition
 mk = 4;
@@ -862,8 +845,7 @@ for iPertDir = 1:2 % push and pull perturbations
                     DatComp(s,ctr) = nanmedian(DatSel(iSel));
                 end
             end
-        end    
-     
+        end        
 
         % Plot data
         subplot(1,2,iPertDir);
@@ -874,8 +856,6 @@ for iPertDir = 1:2 % push and pull perturbations
         yLineInput = [squeeze(DatComp(:,1)) squeeze(DatComp(:,2)) squeeze(DatComp(:,3))];
         xLineInput = [ones(nsubj,1) ones(nsubj,1)*3 ones(nsubj,1)*5];
         line(xLineInput', yLineInput','Color',[0.5 0.5 0.5]); hold on;
-
-        
         NamesConditions_temp = [NamesConditions_header(ControlConditions)];
 
         set(gca,'box','off')
@@ -900,7 +880,6 @@ if Settings.SaveFigures
     saveas(h,fullfile(DatPath,'ResultsFigures','Pusher_WorkRStance.fig'),'fig');
     saveas(h,fullfile(DatPath,'ResultsFigures','Pusher_WorkRStance.svg'),'svg');
 end
-
 disp(' ');
 
 
@@ -1062,11 +1041,10 @@ for ip = 1:2
 end
 disp(' ');
 
-%% Plot COM position at first 4 heelstrikes after perturbation onset
+%% Plot COM position at first 4 heelstrikes after perturbation onset -- reviewers question
 
-% plot work done by exoskeleton during the perturbed step
-
-% question reviewer 1: plot additional balance related outcomes.
+% the reviewer asked if subjects need multiple steps to return to the
+% treadmill origin.
 
 % we run the analysis for (you can use this script to plot any outcome from the data array)
 PlotVars = {'COM_hs1','COM_hs2','COM_hs3','COM_hs4'};

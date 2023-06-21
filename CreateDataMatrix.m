@@ -52,6 +52,7 @@ treshold_dtStride = 3; % excluding strides longer than 3s
 %             right heelstrike (before perturb) till left heelstrike
 
 % controller conditions
+% NMC_Bal is the 
 NamesConditions = {'NMC_Bal','NMC_Default','NMC_COM','MinImp'};
 
 % set warnings off
