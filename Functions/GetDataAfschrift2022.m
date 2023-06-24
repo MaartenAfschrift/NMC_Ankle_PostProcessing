@@ -26,7 +26,7 @@ else
     %LinkZipFile = 'https://www.dropbox.com/s/nikwfsov5ch4nb4/Data_NMC_Balance_Ankle.zip?dl=1';
 %     LinkZipFile = 'https://www.dropbox.com/s/l7qr5m4ik7ar757/Data_NMC_Balance_Ankle.zip?dl=1';
     % test download from osf (test if this works....)
-    LinkZipFile = 'https://osf.io/download/6496d47067aff80855edf86c/';    
+    LinkZipFile = 'https://osf.io/download/6496e6506c0981071b7d1b7a/';    
     websave(fullfile(DataPath,'Data_NMC_Balance_Ankle.zip'),LinkZipFile);
     disp(' unzip DataFile');
     unzip(fullfile(DataPath,'Data_NMC_Balance_Ankle.zip'),DataPath);
