@@ -36,6 +36,7 @@ NamesConditions_header = {' ','NMC COM','NMC default', 'Minimal impedance'};
 
 % path with all data
 DatPath = GetDataAfschrift2022();
+% DatPath = 'D:\Twente_AnkleExo\CSVData_COP';
 
 % get subject information from the .yaml files
 [SubjStruct, SubjFolders, SubjPreFix, SubjID_Exo, mass, height, age ] = ...

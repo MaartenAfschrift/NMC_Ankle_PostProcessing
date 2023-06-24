@@ -19,10 +19,14 @@ else
         mkdir(DataPath);
     end
     % download the executable from google drive
-    disp('Hit enter if you want to download Afschrift 2022 data (500 MB)');
+    disp('Hit enter if you want to download Afschrift 2022 data from https://osf.io/ekrqj (500 MB)');
     pause();
     disp(' download started')
-    LinkZipFile = 'https://www.dropbox.com/s/nikwfsov5ch4nb4/Data_NMC_Balance_Ankle.zip?dl=1';    
+    % download from dropbox
+    %LinkZipFile = 'https://www.dropbox.com/s/nikwfsov5ch4nb4/Data_NMC_Balance_Ankle.zip?dl=1';
+%     LinkZipFile = 'https://www.dropbox.com/s/l7qr5m4ik7ar757/Data_NMC_Balance_Ankle.zip?dl=1';
+    % test download from osf (test if this works....)
+    LinkZipFile = 'https://osf.io/download/6496d47067aff80855edf86c/';    
     websave(fullfile(DataPath,'Data_NMC_Balance_Ankle.zip'),LinkZipFile);
     disp(' unzip DataFile');
     unzip(fullfile(DataPath,'Data_NMC_Balance_Ankle.zip'),DataPath);

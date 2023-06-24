@@ -90,8 +90,8 @@ if Set.CreateDatMatUnp
                     T.Soleus_L T.Gastroc_L T.Tibialis_L];
 
                 % detect gait cycle events
-                [Event,Step] = GetSpatioTemporalParam(T.time,T.Fz_L,...
-                    T.Fz_R,treshold,dtOffPlate);
+                [Event,Step] = GetSpatioTemporalParam(T.time,T.Fy_L,...
+                    T.Fy_R,treshold,dtOffPlate);
 
                 % get the gait cycle averages between minute 2 en 4 of the
                 % trial
@@ -257,8 +257,8 @@ if Set.CreateDatMatPert
                         EMGResponse= nanmean(EMG_norm(iSel,:));
 
                         % detect gait cycle events
-                        [Event,Step] = GetSpatioTemporalParam(T.time,T.Fz_L,...
-                            T.Fz_R,treshold,dtOffPlate);
+                        [Event,Step] = GetSpatioTemporalParam(T.time,T.Fy_L,...
+                            T.Fy_R,treshold,dtOffPlate);
 
                         % movement pelvis on treadmill
                         Pelvis = [T.COMPelvis_x  T.COMPelvis_y T.COMPelvis_z]./1000;
