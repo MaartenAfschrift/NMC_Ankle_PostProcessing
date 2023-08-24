@@ -27,9 +27,9 @@ Settings.NormToMinImpPert = false; % normalize muscle response to muscle resposn
 Settings.SaveFigures = false; % save the figures
 
 % index and name controller conditions
-ControlConditions = [3 2 4]; % (3= NMC_COM, 2 = NMC_Default, 4 = minimal impedance)
-NamesConditions = {'GeyerBal','GeyerCOM','GeyerD','MinImp'};
-NamesConditions_header = {' ','NMC COM','NMC default', 'Minimal impedance'};
+ControlConditions = [2 3 4]; % (3= NMC_COM, 2 = NMC_Default, 4 = minimal impedance)
+NamesConditions = {'NMC_Bal','NMC_Default','NMC_COM','MinImp'}; 
+NamesConditions_header = {' ','NMC default','NMC COM', 'Minimal impedance'};
 
 
 %% Load the main data matrix
